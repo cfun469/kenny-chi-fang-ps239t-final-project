@@ -186,5 +186,5 @@ mb_map <- leaflet(data = countries) %>%
   hideGroup("GDP Share 2008") %>%
   hideGroup("GDP Share 2000") %>%
   hideGroup("GDP Share 1992") %>%
-  saveWidget("military_index_map.html")
+  saveWidget("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/results/military_index_map.html")
 ```

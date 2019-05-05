@@ -47,7 +47,7 @@ exp$year = as.numeric(exp$year)
 
 index1 <- left_join(mb, exp, by = c("country" = "country", "year" = "year")) %>%
   left_join(gdp, by = c("country" = "country", "year" = "year")) %>%
-  write.csv("military_index_ggplot.csv")%>%
+  write.csv("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/clean_data/military_index_ggplot.csv")%>%
   print()
 ```
 ```{r}
@@ -72,7 +72,7 @@ index_comp <-
 index_comp[index_comp$country == "People's Republic of China", "country"] <- "China"
 index_comp[index_comp$country == "United States of America", "country"] <- "USA"
 index_comp[index_comp$country == "United Kingdom", "country"] <- "UK"
-write.csv(index_comp, "military_index_eight_nation.csv")
+write.csv(index_comp, "C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/clean_data/military_index_eight_nation.csv")
 ```
 
 ```{r}
@@ -127,8 +127,8 @@ area_plot <- ggplot(index_comp, aes(year, m_xpense, fill = country)) +
 #Combining military expense and military burden plot
 grid_plot <- grid.arrange(capita_growth, area_plot, nrow = 2)
 #Saving plots
-ggsave("military_burden_and_expense.png", grid_plot ,limitsize = F, width = 40, height = 20, units = "cm")
-ggsave("gdp_share_rose_plot.png", rose_plot ,limitsize = F, width = 20, height = 20, units = "cm")
+ggsave("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/results/military_burden_and_expense.png", grid_plot ,limitsize = F, width = 40, height = 20, units = "cm")
+ggsave("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/results/gdp_share_rose_plot.png", rose_plot ,limitsize = F, width = 20, height = 20, units = "cm")
 ```
 
 ```{r}
@@ -137,5 +137,5 @@ long_term <- streamgraph(index_comp, key="country", value="r_average", date="yea
   sg_fill_brewer("RdGy") %>%
   sg_legend(show=TRUE, label="Country: ") %>%
   print()
-
+#This streamgraph could not be saved hence I made a screenshot of it.
 ```

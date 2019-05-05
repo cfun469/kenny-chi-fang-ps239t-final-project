@@ -17,7 +17,7 @@ p_load(broom, leaflet, leaflet.extras, maps, rnaturalearth, RColorBrewer,
 devtools::install_github("hrbrmstr/streamgraph")
 library(streamgraph)
 ```
-
+# 1. Clean data
 ```{r}
 #Preparing function: converting characters into numerics and integers
 convert_round <- function(x){
@@ -28,7 +28,7 @@ convert_integer <- function(x){
 }
 
 #sipri_mb : mb for military burden
-sipri_mb <- read_excel("C:/Users/diplo/OneDrive/Documents/data/SIPRI-Milex-data-1949-2017-1.xlsx", sheet = 8) %>%
+sipri_mb <- read_excel("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/raw_data/SIPRI-Milex-data-1949-2017-1.xlsx", sheet = 8) %>%
   as.tibble() 
 sipri_mb <- sipri_mb[c(6:203), c(1, 7:32)] #keeping only the national figure
 a <- c(7, 8, 13, 61, 62, 76, 79, 91, 92, 98, 105, 112, 124, 129, 130, 136, 138, 151, 159, 180, 196:203) #ivalid rows on the dataframe (regions and subregions)
@@ -36,12 +36,12 @@ sipri_mb <- sipri_mb[-(a-5), ] #substracting the unwanted rows
 colnames(sipri_mb) <- sipri_mb[c(1), ] #rename the column name by the first row
 sipri_mb <- sipri_mb[-c(1), ] %>%
   as.data.frame() %>%
-  write.csv("military_burden.csv")%>%
+  write.csv("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/clean_data/military_burden.csv")%>%
   print() 
 ```
 ```{r}
 #military expenditure as the share of gdp
-sipri_gdp <- read_excel("C:/Users/diplo/OneDrive/Documents/data/SIPRI-Milex-data-1949-2017-1.xlsx", sheet = 7) %>%
+sipri_gdp <- read_excel("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/raw_data/SIPRI-Milex-data-1949-2017-1.xlsx", sheet = 7) %>%
   as.tibble() 
 sipri_gdp <- sipri_gdp[c(5:196), c(1, 46:71)]
 sipri_gdp
@@ -50,25 +50,25 @@ sipri_gdp <- sipri_gdp[-(b-4), ] #substracting the unwanted rows
 colnames(sipri_gdp) <- sipri_gdp[c(1), ] #rename the column name by the first row
 sipri_gdp <- sipri_gdp[-c(1), ] %>%
   as.data.frame() %>%
-  write.csv("military_gdp_share.csv")%>%
+  write.csv("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/clean_data/military_gdp_share.csv")%>%
   print() 
 ```
 ```{r}
 #military expenditure in terms of us current
-sipri_exp <- read_excel("C:/Users/diplo/OneDrive/Documents/data/SIPRI-Milex-data-1949-2017-1.xlsx", sheet = 6) %>%
+sipri_exp <- read_excel("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/raw_data/SIPRI-Milex-data-1949-2017-1.xlsx", sheet = 6) %>%
   as.tibble() 
 sipri_exp <- sipri_exp[c(5:196), c(1, 46:71)]
 sipri_exp <- sipri_exp[-(b-4), ] #substracting the unwanted rows
 colnames(sipri_exp) <- sipri_exp[c(1), ] #rename the column name by the first row
 sipri_exp <- sipri_exp[-c(1), ]  %>%
   as.data.frame() %>% 
-  write.csv("military_expense.csv")%>%
+  write.csv("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/clean_data/military_expense.csv")%>%
   print()
 ```
 
 ```{r}
 #iso alpha code 
-iso <- read.csv("C:/Users/diplo/OneDrive/Documents/data/countries_codes_and_coordinates.csv") %>%
+iso <- read.csv("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/raw_data/countries_codes_and_coordinates.csv") %>%
   as.data.frame()
 #load the shape file
 countries <- ne_countries(scale = 'large')
@@ -111,9 +111,9 @@ for(x in var_col){
 for(x in var_col1){
   countries@data[, x] <- convert_integer(countries@data[, x])
 }
-write.csv(countries@data, "mapping_data.csv")
+write.csv(countries@data, "C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/clean_data/mapping_data.csv")
 ```
-
+# 2. Leaflet interactive map
 ```{r}
 #add colors (choropleth maps)
 bins_1 <- c(0, 10, 20, 50, 100, 250, 500, 1000, Inf)
@@ -273,6 +273,7 @@ mb_map <- leaflet(data = countries) %>%
     overlayGroups = c("Military Expense 1992", "Military Expense 2000", "Military Expense 2008", "Military Expense 2017", "GDP Share 1992", "GDP Share 2000", "GDP Share 2008", "GDP Share 2017")
     )%>%
 #Unselect pre-selected groups
+#This function does not allow semi-column, hence the same step is repeatd for times.
   hideGroup("Military Expense 2017")%>%
   hideGroup("Military Expense 2008")%>%
   hideGroup("Military Expense 2000")%>%
@@ -280,10 +281,11 @@ mb_map <- leaflet(data = countries) %>%
   hideGroup("GDP Share 2008") %>%
   hideGroup("GDP Share 2000") %>%
   hideGroup("GDP Share 1992") %>%
-  saveWidget("military_index_map.html")
+  saveWidget("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/results/military_index_map.html")
 ```
-
+# 3. Clean data and ggplot visualization
 ```{r}
+#Preparation for visualizing by ggplot2
 mb <- countries@data[, c(77, 96:121)]
 names(mb)[2:27] <- c(1992: 2017) 
 names(mb)[1] <- "country" #rename the variable
@@ -307,7 +309,7 @@ exp$year = as.numeric(exp$year)
 
 index1 <- left_join(mb, exp, by = c("country" = "country", "year" = "year")) %>%
   left_join(gdp, by = c("country" = "country", "year" = "year")) %>%
-  write.csv("military_index_ggplot.csv")%>%
+  write.csv("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/clean_data/military_index_ggplot.csv")%>%
   print()
 ```
 ```{r}
@@ -332,7 +334,7 @@ index_comp <-
 index_comp[index_comp$country == "People's Republic of China", "country"] <- "China"
 index_comp[index_comp$country == "United States of America", "country"] <- "USA"
 index_comp[index_comp$country == "United Kingdom", "country"] <- "UK"
-write.csv(index_comp, "military_index_eight_nation.csv")
+write.csv(index_comp, "C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/data/clean_data/military_index_eight_nation.csv")
 ```
 
 ```{r}
@@ -387,8 +389,8 @@ area_plot <- ggplot(index_comp, aes(year, m_xpense, fill = country)) +
 #Combining military expense and military burden plot
 grid_plot <- grid.arrange(capita_growth, area_plot, nrow = 2)
 #Saving plots
-ggsave("military_burden_and_expense.png", grid_plot ,limitsize = F, width = 40, height = 20, units = "cm")
-ggsave("gdp_share_rose_plot.png", rose_plot ,limitsize = F, width = 20, height = 20, units = "cm")
+ggsave("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/results/military_burden_and_expense.png", grid_plot ,limitsize = F, width = 40, height = 20, units = "cm")
+ggsave("C:/Users/diplo/OneDrive/course/introCOMPTOOLS/Final Project/kenny-chi-fang-ps239t-final-project/results/gdp_share_rose_plot.png", rose_plot ,limitsize = F, width = 20, height = 20, units = "cm")
 ```
 
 ```{r}
@@ -397,5 +399,5 @@ long_term <- streamgraph(index_comp, key="country", value="r_average", date="yea
   sg_fill_brewer("RdGy") %>%
   sg_legend(show=TRUE, label="Country: ") %>%
   print()
-
+#This streamgraph could not be saved hence I made a screenshot of it.
 ```
