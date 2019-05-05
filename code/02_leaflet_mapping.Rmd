@@ -1,0 +1,190 @@
+---
+title: "leaflet_mapping"
+author: "Chi Fang"
+date: "2019¦~5¤ë4¤é"
+output: html_document
+---
+```{r}
+rm(list=ls()) 
+```
+
+```{r}
+#library
+library(pacman)
+p_load(broom, leaflet, leaflet.extras, maps, rnaturalearth, RColorBrewer, 
+       rio, readxl, rlang, rgdal, WDI, sp, sf, tibble, tidyverse, dplyr, data.table, 
+       htmltools, htmlwidgets, ggplot2, ggthemes, gridExtra, zoo)
+devtools::install_github("hrbrmstr/streamgraph")
+library(streamgraph)
+```
+In this part, I started to produce interactive map by using leaflet and referring to the data I processed in the previous script.
+
+```{r}
+#add colors (choropleth maps)
+bins_1 <- c(0, 10, 20, 50, 100, 250, 500, 1000, Inf)
+bins_2 <- c(0, 2, 4, 6, 8, 10)
+bins_3 <- c(0, 1000, 2500, 5000, 10000, 20000, 40000, 80000, Inf)
+pal_1 <- colorBin("YlGnBu", domain = countries$X2017, bins = bins_1)
+pal_2 <- colorBin("PiYG", domain = countries$X2017.1, bins = bins_2)
+pal_3 <- colorBin("Reds", domain = countries$X2017.2, bins = bins_3)
+
+#make the map
+mb_map <- leaflet(data = countries) %>%
+  addProviderTiles("CartoDB") %>%
+  setView(lat = 0, lng = 0, zoom = 2) %>%
+  setMaxBounds(lng1 = -180,
+               lng2 = 180,
+               lat1 = -90,
+               lat2 = 90)%>%
+  addEasyButton(easyButton(
+    icon="fa-globe", title="Zoom to Level 1",
+    onClick=JS("function(btn, map){ map.setZoom(1); }")))%>%
+  addLegend(pal = pal_1, values = ~X2017, opacity = 0.7, title = "Military Burden", position = "bottomright") %>%
+#Data from 2017: In the order of, Military Burden, GDP Share, Expense (US 2016 Current)
+  addPolygons(fillColor = ~pal_1(X2017),
+              fillOpacity = "2",
+              opacity = "1",
+              color = "white",
+              weight = 1,
+              highlight = highlightOptions(weight = 1.5,
+                                           color = "black",
+                                           fillColor = "white",
+                                           fillOpacity = 1,
+                                           bringToFront = F),
+              label = ~sovereignt,
+              group = "Military Burden 2017") %>%
+#GDP Share
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_2(X2017.1), 
+             color = ~pal_2(X2017.1), 
+             opacity = 0,
+             fillOpacity = 0.1,
+             radius = ~X2017.1 / 10^(-8),
+             group = "GDP Share 2017") %>%
+#Military Expense
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_3(X2017.2), 
+             color = ~pal_3(X2017.2), 
+             opacity = 0,
+             fillOpacity = 0.5,
+             radius = ~X2017.2*25,
+             label = ~sovereignt,
+             group = "Military Expense 2017") %>%
+  
+#Data from 2008: In the order of, Military Burden, GDP Share, Expense (US 2016 Current)
+  addPolygons(fillColor = ~pal_1(X2008), 
+              fillOpacity = "2",
+              opacity = "1",
+              color = "white",
+              weight = 1,
+              highlight = highlightOptions(weight = 1.5,
+                                           color = "black",
+                                           fillColor = "white",
+                                           fillOpacity = 1,
+                                           bringToFront = F),
+              label = ~sovereignt,
+              group = "Military Burden 2008") %>%
+#GDP Share
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_2(X2008.1), 
+             color = ~pal_2(X2008.1), 
+             opacity = 0,
+             fillOpacity = 0.1,
+             radius = ~X2008.1 / 10^(-8),
+             group = "GDP Share 2008") %>%
+#Military Expense
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_3(X2008.2), 
+             color = ~pal_3(X2008.2), 
+             opacity = 0,
+             fillOpacity = 0.65,
+             radius = ~X2008.2*25,
+             label = ~sovereignt,
+             group = "Military Expense 2008")  %>%
+  
+#Data from 2000: In the order of, Military Burden, GDP Share, Expense (US 2016 Current)
+  addPolygons(fillColor = ~pal_1(X2000),
+              fillOpacity = "2",
+              opacity = "1",
+              color = "white",
+              weight = 1,
+              highlight = highlightOptions(weight = 1.5,
+                                           color = "black",
+                                           fillColor = "white",
+                                           fillOpacity = 1,
+                                           bringToFront = F),
+              label = ~sovereignt,
+              group = "Military Burden 2000") %>%
+#GDP Share
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_2(X2000.1), 
+             color = ~pal_2(X2000.1), 
+             opacity = 0,
+             fillOpacity = 0.1,
+             radius = ~X2000.1 / 10^(-8),
+             group = "GDP Share 2000") %>%
+#Military Expense
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_3(X2000.2), 
+             color = ~pal_3(X2000.2), 
+             opacity = 0,
+             fillOpacity = 0.65,
+             radius = ~X2000.2*25,
+             label = ~sovereignt,
+             group = "Military Expense 2000")  %>%
+  
+#Data from 1992: In the order of, Military Burden, GDP Share, Expense (US 2016 Current)
+  addPolygons(fillColor = ~pal_1(X1992),
+              fillOpacity = "2",
+              opacity = "1",
+              color = "white",
+              weight = 1,
+              highlight = highlightOptions(weight = 1.5,
+                                           color = "black",
+                                           fillColor = "white",
+                                           fillOpacity = 1,
+                                           bringToFront = F),
+              label = ~sovereignt,
+              group = "Military Burden 1992") %>%
+#GDP Share
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_2(X1992.1), 
+             color = ~pal_2(X1992.1), 
+             opacity = 0,
+             fillOpacity = 0.1,
+             radius = ~X1992.1 / 10^(-8),
+             group = "GDP Share 1992") %>%
+#Military Expense
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_3(X1992.2), 
+             color = ~pal_3(X1992.2), 
+             opacity = 0,
+             fillOpacity = 0.65,
+             radius = ~X1992.2*25,
+             label = ~sovereignt,
+             group = "Military Expense 1992") %>%
+#Additional function
+  addMiniMap(position = "bottomleft", toggleDisplay = TRUE) %>%
+  addLayersControl(
+    baseGroups = c("Military Burden 1992", "Military Burden 2000", "Military Burden 2008", "Military Burden 2017"),
+    overlayGroups = c("Military Expense 1992", "Military Expense 2000", "Military Expense 2008", "Military Expense 2017", "GDP Share 1992", "GDP Share 2000", "GDP Share 2008", "GDP Share 2017")
+    )%>%
+#Unselect pre-selected groups
+#This function does not allow semi-column, hence the same step is repeatd for times.
+  hideGroup("Military Expense 2017")%>%
+  hideGroup("Military Expense 2008")%>%
+  hideGroup("Military Expense 2000")%>%
+  hideGroup("GDP Share 2017") %>%
+  hideGroup("GDP Share 2008") %>%
+  hideGroup("GDP Share 2000") %>%
+  hideGroup("GDP Share 1992") %>%
+  saveWidget("military_index_map.html")
+```

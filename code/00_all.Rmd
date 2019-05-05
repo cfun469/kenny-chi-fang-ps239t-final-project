@@ -1,0 +1,401 @@
+---
+title: "all"
+author: "Chi Fang"
+date: "2019¦~5¤ë5¤é"
+output: html_document
+---
+```{r}
+rm(list=ls()) 
+```
+
+```{r}
+#library
+library(pacman)
+p_load(broom, leaflet, leaflet.extras, maps, rnaturalearth, RColorBrewer, 
+       rio, readxl, rlang, rgdal, WDI, sp, sf, tibble, tidyverse, dplyr, data.table, 
+       htmltools, htmlwidgets, ggplot2, ggthemes, gridExtra, zoo)
+devtools::install_github("hrbrmstr/streamgraph")
+library(streamgraph)
+```
+
+```{r}
+#Preparing function: converting characters into numerics and integers
+convert_round <- function(x){
+  as.integer(round(as.numeric(as.character(x))))
+}
+convert_integer <- function(x){
+  as.numeric(as.character(x))
+}
+
+#sipri_mb : mb for military burden
+sipri_mb <- read_excel("C:/Users/diplo/OneDrive/Documents/data/SIPRI-Milex-data-1949-2017-1.xlsx", sheet = 8) %>%
+  as.tibble() 
+sipri_mb <- sipri_mb[c(6:203), c(1, 7:32)] #keeping only the national figure
+a <- c(7, 8, 13, 61, 62, 76, 79, 91, 92, 98, 105, 112, 124, 129, 130, 136, 138, 151, 159, 180, 196:203) #ivalid rows on the dataframe (regions and subregions)
+sipri_mb <- sipri_mb[-(a-5), ] #substracting the unwanted rows
+colnames(sipri_mb) <- sipri_mb[c(1), ] #rename the column name by the first row
+sipri_mb <- sipri_mb[-c(1), ] %>%
+  as.data.frame() %>%
+  write.csv("military_burden.csv")%>%
+  print() 
+```
+```{r}
+#military expenditure as the share of gdp
+sipri_gdp <- read_excel("C:/Users/diplo/OneDrive/Documents/data/SIPRI-Milex-data-1949-2017-1.xlsx", sheet = 7) %>%
+  as.tibble() 
+sipri_gdp <- sipri_gdp[c(5:196), c(1, 46:71)]
+sipri_gdp
+b <- c(6, 7, 12, 60, 61, 75, 78, 90, 91, 97, 104, 111, 123, 128, 129, 135, 137, 149, 150, 158, 159, 180) #ivalid rows on the dataframe (regions and subregions)
+sipri_gdp <- sipri_gdp[-(b-4), ] #substracting the unwanted rows
+colnames(sipri_gdp) <- sipri_gdp[c(1), ] #rename the column name by the first row
+sipri_gdp <- sipri_gdp[-c(1), ] %>%
+  as.data.frame() %>%
+  write.csv("military_gdp_share.csv")%>%
+  print() 
+```
+```{r}
+#military expenditure in terms of us current
+sipri_exp <- read_excel("C:/Users/diplo/OneDrive/Documents/data/SIPRI-Milex-data-1949-2017-1.xlsx", sheet = 6) %>%
+  as.tibble() 
+sipri_exp <- sipri_exp[c(5:196), c(1, 46:71)]
+sipri_exp <- sipri_exp[-(b-4), ] #substracting the unwanted rows
+colnames(sipri_exp) <- sipri_exp[c(1), ] #rename the column name by the first row
+sipri_exp <- sipri_exp[-c(1), ]  %>%
+  as.data.frame() %>% 
+  write.csv("military_expense.csv")%>%
+  print()
+```
+
+```{r}
+#iso alpha code 
+iso <- read.csv("C:/Users/diplo/OneDrive/Documents/data/countries_codes_and_coordinates.csv") %>%
+  as.data.frame()
+#load the shape file
+countries <- ne_countries(scale = 'large')
+files <- c(sipri_mb, sipri_gdp, sipri_exp)
+#Combine iso alpha code with the datasets (for further integrating with the shape file)
+sipri_mb <- left_join(x = sipri_mb,
+                      y = iso,
+                      by = c("Country" = "Country")) 
+sipri_gdp <- left_join(x = sipri_gdp,
+                       y = iso,
+                       by = c("Country" = "Country")) 
+sipri_exp <- left_join(x = sipri_exp,
+                       y = iso,
+                       by = c("Country" = "Country")) 
+#Combine sipri dataset with the world shape file
+countries@data = data.frame(countries@data,
+                            sipri_mb[
+                              match(countries@data[, "iso_a2"], 
+                                          sipri_mb[, "Alpha.2code"]),
+                              ]
+                                  )
+countries@data = data.frame(countries@data,
+                            sipri_gdp[
+                              match(countries@data[, "iso_a2"], 
+                                          sipri_gdp[, "Alpha.2code"]),
+                              ]
+                                  )
+countries@data = data.frame(countries@data,
+                            sipri_exp[
+                              match(countries@data[, "iso_a2"], 
+                                          sipri_exp[, "Alpha.2code"]),
+                              ]
+                                  )
+#Selecting columns
+var_col <- c(96:121, 160:185)
+var_col1 <- c(128:153)
+for(x in var_col){
+  countries@data[, x] <- convert_round(countries@data[, x])
+}
+for(x in var_col1){
+  countries@data[, x] <- convert_integer(countries@data[, x])
+}
+write.csv(countries@data, "mapping_data.csv")
+```
+
+```{r}
+#add colors (choropleth maps)
+bins_1 <- c(0, 10, 20, 50, 100, 250, 500, 1000, Inf)
+bins_2 <- c(0, 2, 4, 6, 8, 10)
+bins_3 <- c(0, 1000, 2500, 5000, 10000, 20000, 40000, 80000, Inf)
+pal_1 <- colorBin("YlGnBu", domain = countries$X2017, bins = bins_1)
+pal_2 <- colorBin("PiYG", domain = countries$X2017.1, bins = bins_2)
+pal_3 <- colorBin("Reds", domain = countries$X2017.2, bins = bins_3)
+
+#make the map
+mb_map <- leaflet(data = countries) %>%
+  addProviderTiles("CartoDB") %>%
+  setView(lat = 0, lng = 0, zoom = 2) %>%
+  setMaxBounds(lng1 = -180,
+               lng2 = 180,
+               lat1 = -90,
+               lat2 = 90)%>%
+  addEasyButton(easyButton(
+    icon="fa-globe", title="Zoom to Level 1",
+    onClick=JS("function(btn, map){ map.setZoom(1); }")))%>%
+  addLegend(pal = pal_1, values = ~X2017, opacity = 0.7, title = "Military Burden", position = "bottomright") %>%
+#Data from 2017: In the order of, Military Burden, GDP Share, Expense (US 2016 Current)
+  addPolygons(fillColor = ~pal_1(X2017),
+              fillOpacity = "2",
+              opacity = "1",
+              color = "white",
+              weight = 1,
+              highlight = highlightOptions(weight = 1.5,
+                                           color = "black",
+                                           fillColor = "white",
+                                           fillOpacity = 1,
+                                           bringToFront = F),
+              label = ~sovereignt,
+              group = "Military Burden 2017") %>%
+#GDP Share
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_2(X2017.1), 
+             color = ~pal_2(X2017.1), 
+             opacity = 0,
+             fillOpacity = 0.1,
+             radius = ~X2017.1 / 10^(-8),
+             group = "GDP Share 2017") %>%
+#Military Expense
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_3(X2017.2), 
+             color = ~pal_3(X2017.2), 
+             opacity = 0,
+             fillOpacity = 0.5,
+             radius = ~X2017.2*25,
+             label = ~sovereignt,
+             group = "Military Expense 2017") %>%
+  
+#Data from 2008: In the order of, Military Burden, GDP Share, Expense (US 2016 Current)
+  addPolygons(fillColor = ~pal_1(X2008), 
+              fillOpacity = "2",
+              opacity = "1",
+              color = "white",
+              weight = 1,
+              highlight = highlightOptions(weight = 1.5,
+                                           color = "black",
+                                           fillColor = "white",
+                                           fillOpacity = 1,
+                                           bringToFront = F),
+              label = ~sovereignt,
+              group = "Military Burden 2008") %>%
+#GDP Share
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_2(X2008.1), 
+             color = ~pal_2(X2008.1), 
+             opacity = 0,
+             fillOpacity = 0.1,
+             radius = ~X2008.1 / 10^(-8),
+             group = "GDP Share 2008") %>%
+#Military Expense
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_3(X2008.2), 
+             color = ~pal_3(X2008.2), 
+             opacity = 0,
+             fillOpacity = 0.65,
+             radius = ~X2008.2*25,
+             label = ~sovereignt,
+             group = "Military Expense 2008")  %>%
+  
+#Data from 2000: In the order of, Military Burden, GDP Share, Expense (US 2016 Current)
+  addPolygons(fillColor = ~pal_1(X2000),
+              fillOpacity = "2",
+              opacity = "1",
+              color = "white",
+              weight = 1,
+              highlight = highlightOptions(weight = 1.5,
+                                           color = "black",
+                                           fillColor = "white",
+                                           fillOpacity = 1,
+                                           bringToFront = F),
+              label = ~sovereignt,
+              group = "Military Burden 2000") %>%
+#GDP Share
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_2(X2000.1), 
+             color = ~pal_2(X2000.1), 
+             opacity = 0,
+             fillOpacity = 0.1,
+             radius = ~X2000.1 / 10^(-8),
+             group = "GDP Share 2000") %>%
+#Military Expense
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_3(X2000.2), 
+             color = ~pal_3(X2000.2), 
+             opacity = 0,
+             fillOpacity = 0.65,
+             radius = ~X2000.2*25,
+             label = ~sovereignt,
+             group = "Military Expense 2000")  %>%
+  
+#Data from 1992: In the order of, Military Burden, GDP Share, Expense (US 2016 Current)
+  addPolygons(fillColor = ~pal_1(X1992),
+              fillOpacity = "2",
+              opacity = "1",
+              color = "white",
+              weight = 1,
+              highlight = highlightOptions(weight = 1.5,
+                                           color = "black",
+                                           fillColor = "white",
+                                           fillOpacity = 1,
+                                           bringToFront = F),
+              label = ~sovereignt,
+              group = "Military Burden 1992") %>%
+#GDP Share
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_2(X1992.1), 
+             color = ~pal_2(X1992.1), 
+             opacity = 0,
+             fillOpacity = 0.1,
+             radius = ~X1992.1 / 10^(-8),
+             group = "GDP Share 1992") %>%
+#Military Expense
+  addCircles(~Longitude.average., 
+             ~Latitude.average., 
+             fillColor = ~pal_3(X1992.2), 
+             color = ~pal_3(X1992.2), 
+             opacity = 0,
+             fillOpacity = 0.65,
+             radius = ~X1992.2*25,
+             label = ~sovereignt,
+             group = "Military Expense 1992") %>%
+#Additional function
+  addMiniMap(position = "bottomleft", toggleDisplay = TRUE) %>%
+  addLayersControl(
+    baseGroups = c("Military Burden 1992", "Military Burden 2000", "Military Burden 2008", "Military Burden 2017"),
+    overlayGroups = c("Military Expense 1992", "Military Expense 2000", "Military Expense 2008", "Military Expense 2017", "GDP Share 1992", "GDP Share 2000", "GDP Share 2008", "GDP Share 2017")
+    )%>%
+#Unselect pre-selected groups
+  hideGroup("Military Expense 2017")%>%
+  hideGroup("Military Expense 2008")%>%
+  hideGroup("Military Expense 2000")%>%
+  hideGroup("GDP Share 2017") %>%
+  hideGroup("GDP Share 2008") %>%
+  hideGroup("GDP Share 2000") %>%
+  hideGroup("GDP Share 1992") %>%
+  saveWidget("military_index_map.html")
+```
+
+```{r}
+mb <- countries@data[, c(77, 96:121)]
+names(mb)[2:27] <- c(1992: 2017) 
+names(mb)[1] <- "country" #rename the variable
+mb <- gather(mb, 'year','per_capita',-'country') %>%
+  as.data.frame()
+mb$year = as.numeric(mb$year)
+
+gdp <- countries@data[, c(77, 128:153)]
+names(gdp)[2:27] <- c(1992: 2017)
+names(gdp)[1] <- "country"
+gdp <- gather(gdp, 'year', 'gdp_share',-'country' ) %>%
+  as.data.frame()
+gdp$year = as.numeric(gdp$year)
+
+exp <- countries@data[, c(77, 160:185)]
+names(exp)[2:27] <- c(1992: 2017)
+names(exp)[1] <- "country"
+exp <- gather(exp, "year", "m_xpense", -"country") %>%
+  as.data.frame()
+exp$year = as.numeric(exp$year)
+
+index1 <- left_join(mb, exp, by = c("country" = "country", "year" = "year")) %>%
+  left_join(gdp, by = c("country" = "country", "year" = "year")) %>%
+  write.csv("military_index_ggplot.csv")%>%
+  print()
+```
+```{r}
+#extracting data from specific countries
+#I do not use group_by() because it kept producing new variable containing no message without doing what is expected.
+index_cn <- filter(index1, country == "People's Republic of China")
+index_us <- filter(index1, country == "United States of America")
+index_id <- filter(index1, country == "India")
+index_jp <- filter(index1, country == "Japan")
+index_uk <- filter(index1, country == "United Kingdom")
+index_au <- filter(index1, country == "Australia")
+index_rok <- filter(index1, country == "South Korea")
+index_tw <- filter(index1, country == "Taiwan")
+#Combine national data above
+index_comp <- 
+  rbind(index_cn, index_uk, index_us, index_jp, index_id, index_au, index_rok, index_tw)%>%
+    group_by(country) %>%
+  mutate(r_average = rollmean(m_xpense, 2, na.pad = T, align = "right")) %>%
+  mutate_at(vars (per_capita, m_xpense, gdp_share, r_average) , funs(growth = ((.-lag(.))/lag(.))*100)) %>%
+  print()
+#Renmae some countries to make plot easier to read later
+index_comp[index_comp$country == "People's Republic of China", "country"] <- "China"
+index_comp[index_comp$country == "United States of America", "country"] <- "USA"
+index_comp[index_comp$country == "United Kingdom", "country"] <- "UK"
+write.csv(index_comp, "military_index_eight_nation.csv")
+```
+
+```{r}
+#set up specific styles for plots
+black <- theme(text = element_text(size=14),
+               plot.caption = element_text(colour="black",size=14),
+               axis.text.y = element_text(colour="black",size=14),
+               axis.text.x = element_text(colour="black",size=14),
+               legend.text = element_text(colour="black",size=14))
+#set up specific styles for plots
+white <- 
+  theme_solarized_2(light = F) +
+  theme(text = element_text(size=14),
+               plot.title = element_text(colour="white", face = "bold"),
+               plot.caption = element_text(colour="white",size=10),
+               axis.text.y = element_text(colour="white",size=14),
+               axis.text.x = element_text(colour="white",size=14, angle = 45, hjust = 1),
+               legend.text = element_text(colour="white",size=14))
+#Modify the name of legend
+new_legend <- scale_fill_discrete(name = "Country")
+
+#rose plot with annual change of military expense (% GDP)
+rose_plot <- ggplot(index_comp, aes(year, gdp_share, fill = country)) +
+  ggtitle("Military Expense (% of GDP, 1992 - 2017)") +
+  geom_bar(stat = "identity") +
+  scale_fill_brewer(palette="RdBu")+xlab("")+ylab("") +
+  coord_polar() +
+  theme_minimal() +xlab("")+ylab("") + 
+  black +
+  new_legend
+  
+
+# annual growth of military burden
+capita_growth <- ggplot(index_comp, aes(year, per_capita_growth, col = country)) +
+  ggtitle("Growth of Military Burden, 1992 - 2017", subtitle = "Military Burden: Military expenditure per capita.") +
+  geom_line() +
+  facet_grid(.~country) +
+  theme_solarized_2(light = FALSE) +
+  labs(x ="Year", y = "Military Expense Growth (per capita)") + 
+  white +
+  new_legend
+  
+#annual military expense
+area_plot <- ggplot(index_comp, aes(year, m_xpense, fill = country)) +
+  ggtitle("Annual Military Expense, 1992 - 2017") +
+  geom_bar(stat = "identity") +
+  
+  labs(x ="Year", y = "Military Expense") +
+  facet_grid(.~country) + 
+  white +
+  new_legend
+#Combining military expense and military burden plot
+grid_plot <- grid.arrange(capita_growth, area_plot, nrow = 2)
+#Saving plots
+ggsave("military_burden_and_expense.png", grid_plot ,limitsize = F, width = 40, height = 20, units = "cm")
+ggsave("gdp_share_rose_plot.png", rose_plot ,limitsize = F, width = 20, height = 20, units = "cm")
+```
+
+```{r}
+#interactive streamgraph
+long_term <- streamgraph(index_comp, key="country", value="r_average", date="year")%>%
+  sg_fill_brewer("RdGy") %>%
+  sg_legend(show=TRUE, label="Country: ") %>%
+  print()
+
+```

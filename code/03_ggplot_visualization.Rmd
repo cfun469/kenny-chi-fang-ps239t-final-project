@@ -1,0 +1,141 @@
+---
+title: "ggplot_visualization"
+author: "Chi Fang"
+date: "2019¦~5¤ë4¤é"
+output: html_document
+---
+
+#3. ggplot visualization (cross-contries)
+
+```{r}
+rm(list=ls()) 
+```
+
+```{r}
+#library
+library(pacman)
+p_load(broom, leaflet, leaflet.extras, maps, rnaturalearth, RColorBrewer, 
+       rio, readxl, rlang, rgdal, WDI, sp, sf, tibble, tidyverse, dplyr, data.table, 
+       htmltools, htmlwidgets, ggplot2, ggthemes, gridExtra, zoo)
+devtools::install_github("hrbrmstr/streamgraph")
+library(streamgraph)
+```
+This is the final part of the visualization. The data is rearranged to obtain meaningful variables in order to produce plots through ggplot2. Here, I produced four plots: rose plots, line plot, bar plot, and streamgraph. The streamgraph was produced not by ggplot2 but the other package.
+
+```{r}
+#Preparation for visualizing by ggplot2
+mb <- countries@data[, c(77, 96:121)]
+names(mb)[2:27] <- c(1992: 2017) 
+names(mb)[1] <- "country" #rename the variable
+mb <- gather(mb, 'year','per_capita',-'country') %>%
+  as.data.frame()
+mb$year = as.numeric(mb$year)
+
+gdp <- countries@data[, c(77, 128:153)]
+names(gdp)[2:27] <- c(1992: 2017)
+names(gdp)[1] <- "country"
+gdp <- gather(gdp, 'year', 'gdp_share',-'country' ) %>%
+  as.data.frame()
+gdp$year = as.numeric(gdp$year)
+
+exp <- countries@data[, c(77, 160:185)]
+names(exp)[2:27] <- c(1992: 2017)
+names(exp)[1] <- "country"
+exp <- gather(exp, "year", "m_xpense", -"country") %>%
+  as.data.frame()
+exp$year = as.numeric(exp$year)
+
+index1 <- left_join(mb, exp, by = c("country" = "country", "year" = "year")) %>%
+  left_join(gdp, by = c("country" = "country", "year" = "year")) %>%
+  write.csv("military_index_ggplot.csv")%>%
+  print()
+```
+```{r}
+#extracting data from specific countries
+#I do not use group_by() because it kept producing new variable containing no message without doing what is expected.
+index_cn <- filter(index1, country == "People's Republic of China")
+index_us <- filter(index1, country == "United States of America")
+index_id <- filter(index1, country == "India")
+index_jp <- filter(index1, country == "Japan")
+index_uk <- filter(index1, country == "United Kingdom")
+index_au <- filter(index1, country == "Australia")
+index_rok <- filter(index1, country == "South Korea")
+index_tw <- filter(index1, country == "Taiwan")
+#Combine national data above
+index_comp <- 
+  rbind(index_cn, index_uk, index_us, index_jp, index_id, index_au, index_rok, index_tw)%>%
+    group_by(country) %>%
+  mutate(r_average = rollmean(m_xpense, 2, na.pad = T, align = "right")) %>%
+  mutate_at(vars (per_capita, m_xpense, gdp_share, r_average) , funs(growth = ((.-lag(.))/lag(.))*100)) %>%
+  print()
+#Renmae some countries to make plot easier to read later
+index_comp[index_comp$country == "People's Republic of China", "country"] <- "China"
+index_comp[index_comp$country == "United States of America", "country"] <- "USA"
+index_comp[index_comp$country == "United Kingdom", "country"] <- "UK"
+write.csv(index_comp, "military_index_eight_nation.csv")
+```
+
+```{r}
+#set up specific styles for plots
+black <- theme(text = element_text(size=14),
+               plot.caption = element_text(colour="black",size=14),
+               axis.text.y = element_text(colour="black",size=14),
+               axis.text.x = element_text(colour="black",size=14),
+               legend.text = element_text(colour="black",size=14))
+#set up specific styles for plots
+white <- 
+  theme_solarized_2(light = F) +
+  theme(text = element_text(size=14),
+               plot.title = element_text(colour="white", face = "bold"),
+               plot.caption = element_text(colour="white",size=10),
+               axis.text.y = element_text(colour="white",size=14),
+               axis.text.x = element_text(colour="white",size=14, angle = 45, hjust = 1),
+               legend.text = element_text(colour="white",size=14))
+#Modify the name of legend
+new_legend <- scale_fill_discrete(name = "Country")
+
+#rose plot with annual change of military expense (% GDP)
+rose_plot <- ggplot(index_comp, aes(year, gdp_share, fill = country)) +
+  ggtitle("Military Expense (% of GDP, 1992 - 2017)") +
+  geom_bar(stat = "identity") +
+  scale_fill_brewer(palette="RdBu")+xlab("")+ylab("") +
+  coord_polar() +
+  theme_minimal() +xlab("")+ylab("") + 
+  black +
+  new_legend
+  
+
+# annual growth of military burden
+capita_growth <- ggplot(index_comp, aes(year, per_capita_growth, col = country)) +
+  ggtitle("Growth of Military Burden, 1992 - 2017", subtitle = "Military Burden: Military expenditure per capita.") +
+  geom_line() +
+  facet_grid(.~country) +
+  theme_solarized_2(light = FALSE) +
+  labs(x ="Year", y = "Military Expense Growth (per capita)") + 
+  white +
+  new_legend
+  
+#annual military expense
+area_plot <- ggplot(index_comp, aes(year, m_xpense, fill = country)) +
+  ggtitle("Annual Military Expense, 1992 - 2017") +
+  geom_bar(stat = "identity") +
+  
+  labs(x ="Year", y = "Military Expense") +
+  facet_grid(.~country) + 
+  white +
+  new_legend
+#Combining military expense and military burden plot
+grid_plot <- grid.arrange(capita_growth, area_plot, nrow = 2)
+#Saving plots
+ggsave("military_burden_and_expense.png", grid_plot ,limitsize = F, width = 40, height = 20, units = "cm")
+ggsave("gdp_share_rose_plot.png", rose_plot ,limitsize = F, width = 20, height = 20, units = "cm")
+```
+
+```{r}
+#interactive streamgraph
+long_term <- streamgraph(index_comp, key="country", value="r_average", date="year")%>%
+  sg_fill_brewer("RdGy") %>%
+  sg_legend(show=TRUE, label="Country: ") %>%
+  print()
+
+```
